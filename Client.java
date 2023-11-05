@@ -1,10 +1,15 @@
 // Client.java
+
 import java.io.*;
 import java.net.*;
+import java.security.KeyStore;
+import java.security.SecureRandom;
 import java.util.Scanner;
+import javax.net.ssl.*;
+
 
 public class Client {
-    private Socket socket = null;
+    private SSLSocket socket = null;
     private DataInputStream input = null;
     private DataOutputStream out = null;
 
@@ -13,9 +18,33 @@ public class Client {
     }
 
     public void connect(String address, int port) throws ConnectException, IOException {
-        socket = new Socket(address, port);
+    // Load the keystore
+    try {
+        KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(new FileInputStream("keystore.jks"), "password".toCharArray());
+
+        // Set up the key manager factory
+        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+        kmf.init(ks, "password".toCharArray());
+
+        // Set up the trust manager factory
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(ks);
+
+        // Set up the SSL context
+        SSLContext sc = SSLContext.getInstance("TLS");
+        sc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+        SSLSocketFactory ssf = sc.getSocketFactory();
+        socket = (SSLSocket) ssf.createSocket(address, port);
+         // Set the SSL/TLS protocols and cipher suites
+        socket.setEnabledProtocols(new String[] {"TLSv1.3"});
+        socket.setEnabledCipherSuites(new String[] {"TLS_AES_128_GCM_SHA256"});
         this.input = new DataInputStream(socket.getInputStream());
         this.out = new DataOutputStream(socket.getOutputStream());
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+
     }
 
     public void sendFile(String filePath) throws IOException {

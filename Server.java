@@ -2,11 +2,21 @@
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import java.util.Arrays;
+import javax.net.ssl.*;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.io.IOException;
+import java.security.UnrecoverableKeyException;
+import java.security.KeyManagementException;
 
 public class Server {
     // Declare necessary variables
-    private Socket socket = null;
-    private ServerSocket server = null;
+    private SSLSocket socket = null;
+    private SSLServerSocket server = null;
     private DataInputStream in = null;
     private DataOutputStream out = null;
     private String directoryPath;
@@ -15,13 +25,36 @@ public class Server {
     public Server(int port, String directoryPath) {
         this.directoryPath = directoryPath;
         try {
-            // Create server socket
-            server = new ServerSocket(port);
+            
+           // Load the keystore
+            try {
+                KeyStore ks = KeyStore.getInstance("JKS");
+                ks.load(new FileInputStream("keystore.jks"), "password".toCharArray());
+
+                // Set up the key manager factory
+                KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                kmf.init(ks, "password".toCharArray());
+
+                // Set up the trust manager factory
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+                tmf.init(ks);
+
+                // Set up the SSL context
+                SSLContext sc = SSLContext.getInstance("TLS");
+                sc.init(kmf.getKeyManagers(), tmf.getTrustManagers(), new SecureRandom());
+                 
+                // Create SSLServerSocket
+                 SSLServerSocketFactory ssf = sc.getServerSocketFactory();
+                server = (SSLServerSocket) ssf.createServerSocket(port);
+            } catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException | UnrecoverableKeyException | KeyManagementException e) {
+                System.out.println(e);
+            }
+
             System.out.println("Server started");
 
             // Wait for client to connect
-        } catch (IOException i) {
-            System.out.println(i);
+        } catch (Exception e) {
+            System.out.println(e);
         }
     }
 
@@ -30,8 +63,9 @@ public class Server {
         String line = "";
         while (true){
 			try {
+                
 				System.out.println("Waiting for a client ...");
-				socket = server.accept();
+				socket = (SSLSocket) server.accept();
 				System.out.println("Client accepted");
 
 				// Create data streams for communication
@@ -96,7 +130,7 @@ public class Server {
     // Main method
     public static void main(String[] args) {
         // Create server and start listening
-        Server server = new Server(5000, "/home/jstn/server/");
+        Server server = new Server(5000, "C:/Users/reese/OneDrive/Documents/Classes/Coputer/Server/Data");
         try {
             server.listen();
         } catch (IOException e) {
