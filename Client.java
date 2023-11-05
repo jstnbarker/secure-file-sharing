@@ -14,7 +14,6 @@ public class Client {
 
     public void connect(String address, int port) throws ConnectException, IOException {
         socket = new Socket(address, port);
-        System.out.println("Connected");
         this.input = new DataInputStream(socket.getInputStream());
         this.out = new DataOutputStream(socket.getOutputStream());
     }
@@ -56,9 +55,11 @@ public class Client {
     public void listFiles() throws IOException {
         out.writeUTF("list");
         String fileName;
+        System.out.println("\nFilelist: ");
         while (!(fileName = input.readUTF()).equals("end")) {
-            System.out.println(fileName);
+            System.out.println("\t" + fileName);
         }
+        System.out.println("---\n");
     }
 
     //Disconnect from the server
@@ -132,9 +133,13 @@ public class Client {
             System.out.println("2. Send a file");
             System.out.println("3. Exit");
 
+            System.out.print("> ");
             int option = scanner.nextInt();
             scanner.nextLine(); // consume the newline character
-                            
+            
+            if(option == 3){
+                return;
+            }
             client.handler(option);
         }
     }
