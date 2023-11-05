@@ -43,6 +43,7 @@ public class Server {
 
                     // If client requests list of files
                     if (line.equals("list")) {
+                        System.out.println("\tSending file list");
                         File folder = new File(directoryPath);
                         File[] listOfFiles = folder.listFiles();
                         for (File file : listOfFiles) {
@@ -53,8 +54,9 @@ public class Server {
                         }
                         out.writeUTF("end");
                     } else {
+                        String filepath=(directoryPath + "/" + line);
                         // If client requests a specific file
-                        File file = new File(directoryPath + "/" + line);
+                        File file = new File(filepath);
                         if (file.exists()) {
                             // Send file to client
                             byte[] buffer = new byte[4096];
@@ -63,11 +65,12 @@ public class Server {
                             while (fis.read(buffer) > 0) {
                                 out.write(buffer);
                             }
+                            System.out.println("\tSent " + filepath);
                             fis.close();
                         } else {
                             // If file doesn't exist, receive file from client
                             out.writeLong(-1);
-                            FileOutputStream fos = new FileOutputStream(directoryPath + "/" + line);
+                            FileOutputStream fos = new FileOutputStream(filepath);
                             byte[] buffer = new byte[4096];
                             int filesize = (int) in.readLong(); // Read file size.
                             int read = 0;
