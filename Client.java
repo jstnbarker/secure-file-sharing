@@ -8,15 +8,15 @@ public class Client {
     private DataInputStream input = null;
     private DataOutputStream out = null;
 
-    public Client(String address, int port) {
-        try {
-            socket = new Socket(address, port);
-            System.out.println("Connected");
-            input = new DataInputStream(socket.getInputStream());
-            out = new DataOutputStream(socket.getOutputStream());
-        } catch (Exception e) {
-            System.out.println(e);
-        }
+    public Client() {
+        return;
+    }
+
+    public void connect(String address, int port) throws ConnectException, IOException {
+        socket = new Socket(address, port);
+        System.out.println("Connected");
+        this.input = new DataInputStream(socket.getInputStream());
+        this.out = new DataOutputStream(socket.getOutputStream());
     }
 
     public void sendFile(String filePath) throws IOException {
@@ -63,45 +63,79 @@ public class Client {
 
     //Disconnect from the server
     public void disconnect() throws IOException {
+        out.writeUTF("Over");
         out.close();
         input.close();
         socket.close();
     }
 
-    public static void main(String[] args) {
-        Client client = new Client("127.0.0.1", 5000);
+    public void handler(int option){
         Scanner scanner = new Scanner(System.in);
-        try {
-            while(true){
-                System.out.println("List of files on server:");
-                client.listFiles();
-                System.out.println("-----------------------------------");
-                System.out.println("Choose an option:");
-                System.out.println("1. Request a file");
-                System.out.println("2. Send a file");
-                System.out.println("3. Exit");
-                int option = scanner.nextInt();
-                scanner.nextLine(); // consume the newline character
-                if(option == 1){
-                    System.out.println("Enter the name of the file you want to receive:");
-                    String fileToReceive = scanner.nextLine();
-                    client.requestFile(fileToReceive);
+
+        try{
+            connect("127.0.0.1", 5000);
+        } catch (ConnectException e){
+            System.out.println("Server offline");
+            return;
+        } catch (IOException e){
+            System.out.println(e);
+            return;
+        }
+
+        switch(option){
+            case 0:
+                try{
+                    listFiles();
+                } catch (IOException e){
+                    System.out.println(e);
+                    return;
                 }
-                else if(option == 2){
-                    System.out.println("Enter the name of the file you want to send:");
-                    String fileToSend = scanner.nextLine();
-                    client.sendFile(fileToSend);
+                break;
+            case 1:
+                System.out.println("Enter the name of the file you want to receive:");
+                String fileToReceive = scanner.nextLine();
+
+                try{
+                    requestFile(fileToReceive);
+                } catch (IOException e){
+                    System.out.println(e);
+                    return;
                 }
-                else if(option == 3){
-                    client.disconnect();
-                    break;
+                break;
+            case 2:
+                System.out.println("Enter the name of the file you want to send:");
+                String fileToSend = scanner.nextLine();
+                try{
+                    sendFile(fileToSend);
+                } catch (IOException e){
+                    System.out.println(e);
+                    return;
                 }
-                else{
-                    System.out.println("Invalid option");
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+                break;
+        }
+        try{
+            disconnect();
+        } catch (IOException e){
+            System.out.println(e);
+            return;
+        }
+    }
+
+    public static void main(String[] args) {
+        while(true){
+            Client client = new Client();
+            Scanner scanner = new Scanner(System.in);
+
+            System.out.println("Choose an option:");
+            System.out.println("0. List files");
+            System.out.println("1. Request a file");
+            System.out.println("2. Send a file");
+            System.out.println("3. Exit");
+
+            int option = scanner.nextInt();
+            scanner.nextLine(); // consume the newline character
+                            
+            client.handler(option);
         }
     }
 }
