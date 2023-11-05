@@ -126,15 +126,4 @@ public class Server {
 			}
         }
     }
-
-    // Main method
-    public static void main(String[] args) {
-        // Create server and start listening
-        Server server = new Server(5000, "C:/Users/reese/OneDrive/Documents/Classes/Coputer/Server/Data");
-        try {
-            server.listen();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }
