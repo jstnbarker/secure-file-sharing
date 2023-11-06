@@ -44,14 +44,15 @@ public class Client {
     } catch (Exception e) {
         e.printStackTrace();
     }
-
     }
 
     public void sendFile(String filePath) throws IOException {
+        
         File file = new File(filePath);
         FileInputStream fis = new FileInputStream(file);
         byte[] buffer = new byte[4096];
         
+        out.writeUTF("2");
         out.writeUTF(file.getName());
         out.writeLong(file.length());
         while (fis.read(buffer) > 0) {
@@ -62,6 +63,7 @@ public class Client {
     }
 
     public void requestFile(String fileName) throws IOException {
+        out.writeUTF("1");
         out.writeUTF(fileName);
         File file = new File("received_" + fileName);
         FileOutputStream fos = new FileOutputStream(file);
@@ -76,13 +78,12 @@ public class Client {
             remaining -= read;
             fos.write(buffer, 0, read);
         }
-        
         fos.close();
     }
 
     //list files on server
     public void listFiles() throws IOException {
-        out.writeUTF("list");
+        out.writeUTF("0");
         String fileName;
         System.out.println("\nFilelist: ");
         while (!(fileName = input.readUTF()).equals("end")) {
@@ -93,9 +94,9 @@ public class Client {
 
     //Disconnect from the server
     public void disconnect() throws IOException {
-        out.writeUTF("Over");
+        out.writeUTF("-1");
+        socket.close();
         out.close();
         input.close();
-        socket.close();
     }
 }

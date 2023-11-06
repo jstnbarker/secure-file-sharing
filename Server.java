@@ -58,72 +58,77 @@ public class Server {
         }
     }
 
+    public void sendList() throws IOException, FileNotFoundException {
+        System.out.println("\tSending file list");
+        File[] listOfFiles =  new File(directoryPath).listFiles();
+        for (File file : listOfFiles) {
+            if (file.isFile()) {
+                // Send file name to client
+                out.writeUTF(file.getName());
+            }
+        }
+        out.writeUTF("end");
+    }
+
+    public void sendFile(File target) throws IOException, FileNotFoundException {
+        System.out.println(target.getPath());
+        if (target.exists()) {
+            // Send file to client
+            byte[] buffer = new byte[4096];
+            FileInputStream fis = new FileInputStream(target.getPath());
+            out.writeLong(target.length());
+            while (fis.read(buffer) > 0) {
+                out.write(buffer);
+            }
+            fis.close();
+            System.out.println("\tSent " + target.getPath());
+        }
+    }
+
+    public void recvFile(File target) throws IOException, FileNotFoundException {
+        out.writeLong(-1);
+        FileOutputStream fos = new FileOutputStream(target.getPath());
+        byte[] buffer = new byte[4096];
+        int filesize = (int) in.readLong(); // Read file size.
+        int read = 0;
+        int totalRead = 0;
+        int remaining = filesize;
+        while((read = in.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
+            totalRead += read;
+            remaining -= read;
+            fos.write(buffer, 0, read);
+        }
+        fos.close();
+    }
+
     // Method to listen for client messages
     public void listen() throws IOException {
-        String line = "";
         while (true){
-			try {
-                
-				System.out.println("Waiting for a client ...");
-				socket = (SSLSocket) server.accept();
-				System.out.println("Client accepted");
+            System.out.println("Waiting for a client ...");
+            socket = (SSLSocket) server.accept();
+            System.out.println("Client accepted");
 
-				// Create data streams for communication
-				in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-				out = new DataOutputStream(socket.getOutputStream());
-                try {
-                    // Read client message
-                    line = in.readUTF();
+            // Create data streams for communication
+            in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+            out = new DataOutputStream(socket.getOutputStream());
 
-                    // If client requests list of files
-                    if (line.equals("list")) {
-                        System.out.println("\tSending file list");
-                        File folder = new File(directoryPath);
-                        File[] listOfFiles = folder.listFiles();
-                        for (File file : listOfFiles) {
-                            if (file.isFile()) {
-                                // Send file name to client
-                                out.writeUTF(file.getName());
-                            }
-                        }
-                        out.writeUTF("end");
-                    } else {
-                        String filepath=(directoryPath + "/" + line);
-                        // If client requests a specific file
-                        File file = new File(filepath);
-                        if (file.exists()) {
-                            // Send file to client
-                            byte[] buffer = new byte[4096];
-                            FileInputStream fis = new FileInputStream(file);
-                            out.writeLong(file.length());
-                            while (fis.read(buffer) > 0) {
-                                out.write(buffer);
-                            }
-                            System.out.println("\tSent " + filepath);
-                            fis.close();
-                        } else {
-                            // If file doesn't exist, receive file from client
-                            out.writeLong(-1);
-                            FileOutputStream fos = new FileOutputStream(filepath);
-                            byte[] buffer = new byte[4096];
-                            int filesize = (int) in.readLong(); // Read file size.
-                            int read = 0;
-                            int totalRead = 0;
-                            int remaining = filesize;
-                            while((read = in.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
-                                totalRead += read;
-                                remaining -= read;
-                                fos.write(buffer, 0, read);
-                            }
-                            fos.close();
-                        }
-                    }
-                } catch (IOException i) {
-                    System.out.println(i);
+            try{
+            int option = Integer.valueOf(in.readUTF());
+                switch(option) {
+                    case 0:
+                        sendList();
+                        break;
+                    case 1:
+                        sendFile(new File(directoryPath + "/" + in.readUTF()));
+                        break;
+                    case 2:
+                        recvFile(new File(directoryPath + "/" + in.readUTF()));
+                        break;
                 }
-			} catch (IOException i){
-				System.out.println(i);
-			}
+
+            } catch (Exception e){
+                System.out.println(e);
+            }
         }
     }
 }
