@@ -1,17 +1,21 @@
 // Server.java
+import java.util.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import javax.net.ssl.*;
+import java.security.spec.KeySpec;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.security.cert.CertificateException;
 import java.io.IOException;
 import java.security.UnrecoverableKeyException;
 import java.security.KeyManagementException;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 public class Server {
     // Declare necessary variables
@@ -20,12 +24,33 @@ public class Server {
     private DataInputStream in = null;
     private DataOutputStream out = null;
     private String directoryPath;
+    private LinkedList<String> files;
+    private String sessionHash = "";
+    private byte[] sessionSalt = new byte[16];
 
     // Server constructor
-    public Server(int port, String directoryPath) {
+    public Server(int port, String directoryPath, String sessionPassword) {
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(sessionSalt);
+        sessionHash = hash(sessionPassword);
+
+
         this.directoryPath = directoryPath;
+        // Initialize file list
+        files = new LinkedList<String>();
+
+        for (File file : new File(directoryPath).listFiles()) {
+            files.add(file.getName());
+        }
+
+        System.out.println("Found existing files:");
+        ListIterator<String> fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            System.out.println("\tFile: " + fileIterator.next());
+        }
+        
+        // Initialize SSL socket
         try {
-            
            // Load the keystore
             try {
                 KeyStore ks = KeyStore.getInstance("JKS");
@@ -51,28 +76,66 @@ public class Server {
             }
 
             System.out.println("Server started");
-
-            // Wait for client to connect
         } catch (Exception e) {
             System.out.println(e);
         }
     }
 
+    private String hash(String plaintext){
+        KeySpec spec = new PBEKeySpec(plaintext.toCharArray(), sessionSalt, 65536, 128);
+        try{
+            SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+            byte[] hash = f.generateSecret(spec).getEncoded();
+            Base64.Encoder enc = Base64.getEncoder();
+            return enc.encodeToString(hash);
+        } catch(NoSuchAlgorithmException | InvalidKeySpecException e){
+            System.out.println(e);
+        }
+        return "1";
+    }
+
+    private boolean verifyAvailable(File target){
+        ListIterator<String> fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            if(fileIterator.next().equals(target.getName())) return true;
+        }
+        return false;
+    }
+
+    private boolean authorizeSession(){
+        try{
+            String receivedPassword = in.readUTF();
+            String clientHash = hash(receivedPassword);
+            System.out.println("Received password: " + receivedPassword);
+            if(sessionHash.equals(clientHash)){
+                return true;
+            }
+            System.out.println("\tRejected client: Incorrect session password");
+            System.out.println("\tServer hash: " + sessionHash + " Client hash: " + clientHash);
+            return false;
+        }
+        catch(IOException e){
+            System.out.println(e);
+            return false;
+        }
+    }
+    
+
+
     public void sendList() throws IOException, FileNotFoundException {
         System.out.println("\tSending file list");
         File[] listOfFiles =  new File(directoryPath).listFiles();
-        for (File file : listOfFiles) {
-            if (file.isFile()) {
-                // Send file name to client
-                out.writeUTF(file.getName());
-            }
+
+        ListIterator<String> fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            out.writeUTF(fileIterator.next());
         }
         out.writeUTF("end");
     }
 
     public void sendFile(File target) throws IOException, FileNotFoundException {
-        System.out.println(target.getPath());
-        if (target.exists()) {
+        if (verifyAvailable(target)) {
+            out.writeUTF("allow");
             // Send file to client
             byte[] buffer = new byte[4096];
             FileInputStream fis = new FileInputStream(target.getPath());
@@ -83,10 +146,15 @@ public class Server {
             fis.close();
             System.out.println("\tSent " + target.getPath());
         }
+        else{
+            System.out.println("\tRejected request for " + target.getPath());
+            out.writeUTF("deny");
+        }
     }
 
     public void recvFile(File target) throws IOException, FileNotFoundException {
         out.writeLong(-1);
+        files.add(target.getName());
         FileOutputStream fos = new FileOutputStream(target.getPath());
         byte[] buffer = new byte[4096];
         int filesize = (int) in.readLong(); // Read file size.
@@ -113,17 +181,20 @@ public class Server {
             out = new DataOutputStream(socket.getOutputStream());
 
             try{
-            int option = Integer.valueOf(in.readUTF());
-                switch(option) {
-                    case 0:
-                        sendList();
-                        break;
-                    case 1:
-                        sendFile(new File(directoryPath + "/" + in.readUTF()));
-                        break;
-                    case 2:
-                        recvFile(new File(directoryPath + "/" + in.readUTF()));
-                        break;
+                if(authorizeSession()){
+                    out.writeUTF("granted");
+                    int option = Integer.valueOf(in.readUTF());
+                    switch(option) {
+                        case 0:
+                            sendList();
+                            break;
+                        case 1:
+                            sendFile(new File(directoryPath + "/" + in.readUTF()));
+                            break;
+                        case 2:
+                            recvFile(new File(directoryPath + "/" + in.readUTF()));
+                            break;
+                    }
                 }
 
             } catch (Exception e){
