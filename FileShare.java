@@ -9,15 +9,19 @@ class FileShare{
 		Scanner in = new Scanner(System.in);
 		System.out.print("Server address: ");
 		String address = in.nextLine();
+        System.out.print("Session password: ");
+        String password = in.nextLine();
 		Client client = new Client();
+        client.setPassword(password);
 
 		while(true){
 			System.out.println("Choose an option:");
 			System.out.println("0. List files");
 			System.out.println("1. Request a file");
 			System.out.println("2. Send a file");
-			System.out.println("3. Exit");
-			System.out.println("> ");
+			System.out.println("3. Change session password");
+			System.out.println("4. Exit");
+			System.out.print("> ");
 
 			int option = scanner.nextInt();
 			scanner.nextLine();
@@ -53,6 +57,10 @@ class FileShare{
 						client.sendFile(toSend.getPath());
 						break;
 					case 3:
+                        System.out.println("Enter new password: ");
+                        client.setPassword(scanner.nextLine());
+                        break;
+                    case 4:
 						return;
 				}
 				} catch (IOException e) {

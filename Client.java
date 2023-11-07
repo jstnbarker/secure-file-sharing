@@ -12,9 +12,14 @@ public class Client {
     private SSLSocket socket = null;
     private DataInputStream input = null;
     private DataOutputStream out = null;
+    private String sessionPassword = "";
 
     public Client() {
         return;
+    }
+
+    public void setPassword(String password){
+        this.sessionPassword = password;
     }
 
     public void connect(String address, int port) throws ConnectException, IOException {
@@ -47,52 +52,62 @@ public class Client {
     }
 
     public void sendFile(String filePath) throws IOException {
-        
-        File file = new File(filePath);
-        FileInputStream fis = new FileInputStream(file);
-        byte[] buffer = new byte[4096];
-        
-        out.writeUTF("2");
-        out.writeUTF(file.getName());
-        out.writeLong(file.length());
-        while (fis.read(buffer) > 0) {
-            out.write(buffer);
+        out.writeUTF(sessionPassword);
+        if(input.readUTF().equals("granted")){
+            out.writeUTF("2");
+            File file = new File(filePath);
+            FileInputStream fis = new FileInputStream(file);
+            byte[] buffer = new byte[4096];
+            
+            out.writeUTF(file.getName());
+            out.writeLong(file.length());
+            while (fis.read(buffer) > 0) {
+                out.write(buffer);
+            }
+            
+            fis.close();
         }
-        
-        fis.close();
     }
 
     public void requestFile(String fileName) throws IOException {
-        out.writeUTF("1");
-        out.writeUTF(fileName);
-        if(input.readUTF().equals("allow")){
-            File file = new File("received_" + fileName);
-            FileOutputStream fos = new FileOutputStream(file);
-            byte[] buffer = new byte[4096];
-            
-            int filesize = (int) input.readLong(); // Send file size in separate msg
-            int read = 0;
-            int totalRead = 0;
-            int remaining = filesize;
-            while((read = input.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
-                totalRead += read;
-                remaining -= read;
-                fos.write(buffer, 0, read);
+        out.writeUTF(sessionPassword);
+        if(input.readUTF().equals("granted")){
+        {
+            out.writeUTF("1");
+            out.writeUTF(fileName);
+            if(input.readUTF().equals("allow")){
+                File file = new File("received_" + fileName);
+                FileOutputStream fos = new FileOutputStream(file);
+                byte[] buffer = new byte[4096];
+                
+                int filesize = (int) input.readLong(); // Send file size in separate msg
+                int read = 0;
+                int totalRead = 0;
+                int remaining = filesize;
+                while((read = input.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
+                    totalRead += read;
+                    remaining -= read;
+                    fos.write(buffer, 0, read);
+                }
+                fos.close();
             }
-            fos.close();
+            else System.out.println("Denied requested file");
         }
-        else System.out.println("denied");
+    }
     }
 
     //list files on server
     public void listFiles() throws IOException {
-        out.writeUTF("0");
-        String fileName;
-        System.out.println("\nFilelist: ");
-        while (!(fileName = input.readUTF()).equals("end")) {
-            System.out.println("\t" + fileName);
+        out.writeUTF(sessionPassword);
+        if(input.readUTF().equals("granted")){
+            out.writeUTF("0");
+            String fileName;
+            System.out.println("\nFilelist: ");
+            while (!(fileName = input.readUTF()).equals("end")) {
+                System.out.println("\t" + fileName);
+            }
+            System.out.println("---\n");
         }
-        System.out.println("---\n");
     }
 
     //Disconnect from the server
