@@ -21,7 +21,6 @@ public class Server {
     private DataOutputStream out = null;
     private String directoryPath;
     private LinkedList<String[]> files;
-    private ListIterator<String[]> fileIterator;
 
     // Server constructor
     public Server(int port, String directoryPath) {
@@ -37,7 +36,7 @@ public class Server {
         }
 
         System.out.println("Found existing files:");
-        fileIterator = files.listIterator();
+        ListIterator<String[]> fileIterator = files.listIterator();
         while(fileIterator.hasNext()){
             String[] temp = fileIterator.next();
             System.out.println("\tFile: " + temp[0] + " Password hash: " + temp[1]);
@@ -45,7 +44,6 @@ public class Server {
         
         // Initialize SSL socket
         try {
-            
            // Load the keystore
             try {
                 KeyStore ks = KeyStore.getInstance("JKS");
@@ -79,11 +77,10 @@ public class Server {
     public void sendList() throws IOException, FileNotFoundException {
         System.out.println("\tSending file list");
         File[] listOfFiles =  new File(directoryPath).listFiles();
-        for (File file : listOfFiles) {
-            if (file.isFile()) {
-                // Send file name to client
-                out.writeUTF(file.getName());
-            }
+
+        ListIterator<String[]> fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            out.writeUTF(fileIterator.next()[0]);
         }
         out.writeUTF("end");
     }
