@@ -1,10 +1,10 @@
 // Server.java
+import java.util.*;
 import java.io.*;
 import java.net.*;
 import java.nio.file.*;
 import java.security.KeyStore;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import javax.net.ssl.*;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -20,10 +20,30 @@ public class Server {
     private DataInputStream in = null;
     private DataOutputStream out = null;
     private String directoryPath;
+    private LinkedList<String[]> files;
+    private ListIterator<String[]> fileIterator;
 
     // Server constructor
     public Server(int port, String directoryPath) {
         this.directoryPath = directoryPath;
+        // Initialize file list
+        files = new LinkedList<String[]>();
+
+        for (File file : new File(directoryPath).listFiles()) {
+            if (file.isFile()) {
+                String[] temp = {file.getName(), ""};
+                files.add(temp);
+            }
+        }
+
+        System.out.println("Found existing files:");
+        fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            String[] temp = fileIterator.next();
+            System.out.println("\tFile: " + temp[0] + " Password hash: " + temp[1]);
+        }
+        
+        // Initialize SSL socket
         try {
             
            // Load the keystore
@@ -51,8 +71,6 @@ public class Server {
             }
 
             System.out.println("Server started");
-
-            // Wait for client to connect
         } catch (Exception e) {
             System.out.println(e);
         }
