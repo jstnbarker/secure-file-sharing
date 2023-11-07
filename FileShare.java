@@ -69,13 +69,15 @@ class FileShare{
 	}
 
 	public static void serverSession(){
+        System.out.print("Session password: ");
+        String password = scanner.nextLine();
 		System.out.print("Shared file directory: ");
 		File shared = new File(scanner.nextLine());
 		if(!shared.exists()){
 			System.out.println("Shared directory does not exist");
 			return;
 		}
-		Server server = new Server(5000, shared.getPath());
+		Server server = new Server(5000, shared.getPath(), password);
 		try{
 			server.listen();
 		} catch (IOException e) {

@@ -6,12 +6,16 @@ import java.nio.file.*;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import javax.net.ssl.*;
+import java.security.spec.KeySpec;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.security.cert.CertificateException;
 import java.io.IOException;
 import java.security.UnrecoverableKeyException;
 import java.security.KeyManagementException;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 
 public class Server {
     // Declare necessary variables
@@ -21,9 +25,15 @@ public class Server {
     private DataOutputStream out = null;
     private String directoryPath;
     private LinkedList<String[]> files;
+    private String sessionHash = "";
+    private byte[] sessionSalt = new byte[16];
 
     // Server constructor
-    public Server(int port, String directoryPath) {
+    public Server(int port, String directoryPath, String sessionPassword) {
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(sessionSalt);
+        sessionHash = hash("test");
+
         this.directoryPath = directoryPath;
         // Initialize file list
         files = new LinkedList<String[]>();
@@ -39,7 +49,7 @@ public class Server {
         ListIterator<String[]> fileIterator = files.listIterator();
         while(fileIterator.hasNext()){
             String[] temp = fileIterator.next();
-            System.out.println("\tFile: " + temp[0] + " Password hash: " + temp[1]);
+            System.out.println("\tFile: " + temp[0]);
         }
         
         // Initialize SSL socket
@@ -72,6 +82,21 @@ public class Server {
         } catch (Exception e) {
             System.out.println(e);
         }
+    }
+
+    private String hash(String plaintext){
+        KeySpec spec = new PBEKeySpec(plaintext.toCharArray(), sessionSalt, 65536, 128);
+        try{
+            SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+            byte[] hash = f.generateSecret(spec).getEncoded();
+            Base64.Encoder enc = Base64.getEncoder();
+            System.out.println("\tSession salt: " + enc.encodeToString(sessionSalt));
+            System.out.println("\tSession hash: " + enc.encodeToString(hash));
+            return enc.encodeToString(hash);
+        } catch(NoSuchAlgorithmException | InvalidKeySpecException e){
+            System.out.println(e);
+        }
+        return "1";
     }
 
     public void sendList() throws IOException, FileNotFoundException {
