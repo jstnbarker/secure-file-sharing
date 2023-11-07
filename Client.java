@@ -65,20 +65,23 @@ public class Client {
     public void requestFile(String fileName) throws IOException {
         out.writeUTF("1");
         out.writeUTF(fileName);
-        File file = new File("received_" + fileName);
-        FileOutputStream fos = new FileOutputStream(file);
-        byte[] buffer = new byte[4096];
-        
-        int filesize = (int) input.readLong(); // Send file size in separate msg
-        int read = 0;
-        int totalRead = 0;
-        int remaining = filesize;
-        while((read = input.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
-            totalRead += read;
-            remaining -= read;
-            fos.write(buffer, 0, read);
+        if(input.readUTF().equals("allow")){
+            File file = new File("received_" + fileName);
+            FileOutputStream fos = new FileOutputStream(file);
+            byte[] buffer = new byte[4096];
+            
+            int filesize = (int) input.readLong(); // Send file size in separate msg
+            int read = 0;
+            int totalRead = 0;
+            int remaining = filesize;
+            while((read = input.read(buffer, 0, Math.min(buffer.length, remaining))) > 0) {
+                totalRead += read;
+                remaining -= read;
+                fos.write(buffer, 0, read);
+            }
+            fos.close();
         }
-        fos.close();
+        else System.out.println("denied");
     }
 
     //list files on server

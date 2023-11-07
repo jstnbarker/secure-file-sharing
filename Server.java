@@ -85,9 +85,17 @@ public class Server {
         out.writeUTF("end");
     }
 
+    private boolean verifyAvailable(File target){
+        ListIterator<String[]> fileIterator = files.listIterator();
+        while(fileIterator.hasNext()){
+            if(fileIterator.next()[0].equals(target.getName())) return true;
+        }
+        return false;
+    }
+
     public void sendFile(File target) throws IOException, FileNotFoundException {
-        System.out.println(target.getPath());
-        if (target.exists()) {
+        if (verifyAvailable(target)) {
+            out.writeUTF("allow");
             // Send file to client
             byte[] buffer = new byte[4096];
             FileInputStream fis = new FileInputStream(target.getPath());
@@ -97,6 +105,10 @@ public class Server {
             }
             fis.close();
             System.out.println("\tSent " + target.getPath());
+        }
+        else{
+            System.out.println("\tRejected request for " + target.getPath());
+            out.writeUTF("deny");
         }
     }
 
